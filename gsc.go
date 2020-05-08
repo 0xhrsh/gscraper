@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -47,8 +48,8 @@ func main() {
 	naApps = 0
 
 	AppsInfo := make(chan App, 1000)
-	Urls := make(chan string, 1000)
-	NextUrls := make(chan string, 3000)
+	Urls := make(chan string, 3000)
+	NextUrls := make(chan string, 5000)
 
 	urlStore := make(map[string]bool)
 	mapMutex := sync.RWMutex{}
@@ -97,6 +98,7 @@ func main() {
 	seed[35] = "https://play.google.com/store/apps/category/GAME_RACING"
 	seed[36] = "https://play.google.com/store/apps/category/BEAUTY"
 
+	t := time.Now()
 	go func() {
 		for i := 0; i < 37; i++ {
 			Urls <- seed[i]
@@ -125,6 +127,8 @@ func main() {
 
 	var inp string
 	fmt.Scanln(&inp)
+	elapsed := time.Since(t)
+	fmt.Printf("Time to scrape %d Apps is %v\n", wApps, elapsed)
 
 }
 
