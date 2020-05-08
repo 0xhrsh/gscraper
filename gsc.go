@@ -26,19 +26,19 @@ var nApps int
 func main() {
 	nApps = 0
 
-	AppsInfo := make(chan App, 1000)
-	Urls := make(chan string, 1000)
-
+	AppsInfo := make(chan App, 2000)
+	Urls := make(chan string, 2500)
+	TUrls := make(chan string, 2500)
 	urlStore := make(map[string]bool)
 	mapMutex := sync.RWMutex{}
 
-	seed := "/store/apps/details?id=com.whatsapp"
+	seed := "/store/apps/details?id=com.boxingclub.realpunch.free"
 
 	mapMutex.Lock()
 	urlStore[seed] = true
 	mapMutex.Unlock()
 
-	Urls <- "https://play.google.com" + seed
+	TUrls <- "https://play.google.com" + seed
 
 	file, _ := os.OpenFile("Data.csv", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 
@@ -46,11 +46,15 @@ func main() {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	for i := 0; i < 1000; i++ {
-		go getAppInfo(Urls, AppsInfo, urlStore, &mapMutex)
+	for i := 0; i < 5000; i++ {
+		go getAppInfo(Urls, TUrls, AppsInfo)
 	}
 
-	for i := 0; i < 500; i++ {
+	for i := 0; i < 2500; i++ {
+		go getUrls(Urls, TUrls, urlStore, &mapMutex)
+	}
+
+	for i := 0; i < 5000; i++ {
 		go writeToCSV(AppsInfo, writer)
 	}
 
@@ -60,46 +64,48 @@ func main() {
 }
 
 func writeToCSV(AppsInfo chan App, w *csv.Writer) {
-
 	for app := range AppsInfo {
 		w.Write([]string{app.name, app.publisher, app.installs, app.adds, app.genre, app.ratings, app.url})
+		w.Flush()
 	}
 }
 
-func getUrls(url string, Urls chan string, urlStore map[string]bool, mapMutex *sync.RWMutex) {
+func getUrls(Urls chan string, TUrls chan string, urlStore map[string]bool, mapMutex *sync.RWMutex) {
 
-	resp, err := http.Get(url)
-	if err != nil {
-		return
-	}
+	for url := range Urls {
+		resp, err := http.Get(url)
+		if err != nil {
+			return
+		}
 
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	if err != nil {
-		return
-	}
+		doc, err := goquery.NewDocumentFromReader(resp.Body)
+		if err != nil {
+			return
+		}
 
-	doc.Find("a.poRVub").Each(
-		func(i int, s *goquery.Selection) {
-			next, ok := s.Attr("href")
-			mapMutex.Lock()
-			_, prs := urlStore[next]
-			mapMutex.Unlock()
-			if ok && !prs {
+		doc.Find("a.poRVub").Each(
+			func(i int, s *goquery.Selection) {
+				next, ok := s.Attr("href")
 				mapMutex.Lock()
-				urlStore[next] = true
+				_, prs := urlStore[next]
 				mapMutex.Unlock()
+				if ok && !prs {
+					mapMutex.Lock()
+					urlStore[next] = true
+					mapMutex.Unlock()
 
-				Urls <- "https://play.google.com" + next
-			}
-		})
+					TUrls <- "https://play.google.com" + next
+				}
+			})
+	}
 	return
 }
 
-func getAppInfo(Urls chan string, AppsInfo chan App, urlStore map[string]bool, mapMutex *sync.RWMutex) {
+func getAppInfo(Urls chan string, TUrls chan string, AppsInfo chan App) {
 
-	for url := range Urls {
-		// fmt.Println(url)
-		go getUrls(url, Urls, urlStore, mapMutex)
+	for url := range TUrls {
+
+		Urls <- url
 		resp, err := http.Get(url)
 		if err != nil {
 			// log.Panicln(err)
