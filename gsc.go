@@ -26,13 +26,14 @@ type App struct {
 var rApps int
 var wApps int
 var naApps int
+var skipped int
 
 func writeToCSV(AppsInfo chan App, w *csv.Writer) {
 	for app := range AppsInfo {
 		w.Write([]string{fmt.Sprint(wApps + 1), app.name, app.publisher, app.installs, app.adds, app.genre, app.ratings, app.url})
 		w.Flush()
 		wApps++
-		println(rApps, wApps, naApps)
+		println(rApps, wApps, naApps, skipped)
 	}
 }
 
@@ -106,7 +107,7 @@ func main() {
 		}
 	}()
 
-	for i := 0; i < 5000; i++ {
+	for i := 0; i < 1000; i++ {
 		go func() {
 			for url := range Urls {
 				getNextUrls(url, NextUrls, urlStore, &mapMutex) // go to each url to get NextUrls
@@ -114,7 +115,7 @@ func main() {
 		}()
 	}
 
-	for i := 0; i < 5000; i++ {
+	for i := 0; i < 2000; i++ {
 		go func() {
 			for url := range NextUrls {
 				getAppInfo(url, AppsInfo, Urls) // go to each url to get info and find more urls
@@ -133,7 +134,7 @@ func main() {
 }
 
 func getNextUrls(url string, NextUrls chan string, urlStore map[string]bool, mapMutex *sync.RWMutex) {
-
+	time.Sleep(400 * time.Millisecond)
 	resp, err := http.Get(url)
 	checkError(err)
 
@@ -147,6 +148,7 @@ func getNextUrls(url string, NextUrls chan string, urlStore map[string]bool, map
 			_, prs := urlStore[next]
 			mapMutex.Unlock()
 			if ok && !prs {
+
 				mapMutex.Lock()
 				urlStore[next] = true
 				mapMutex.Unlock()
@@ -155,7 +157,7 @@ func getNextUrls(url string, NextUrls chan string, urlStore map[string]bool, map
 				case NextUrls <- "https://play.google.com" + next:
 					//
 				default:
-					//
+					skipped++
 				}
 
 			}
@@ -164,7 +166,7 @@ func getNextUrls(url string, NextUrls chan string, urlStore map[string]bool, map
 }
 
 func getAppInfo(url string, AppsInfo chan App, Urls chan string) {
-
+	time.Sleep(400 * time.Millisecond)
 	resp, err := http.Get(url)
 	checkError(err)
 
@@ -190,14 +192,9 @@ func getAppInfo(url string, AppsInfo chan App, Urls chan string) {
 		naApps++
 	} else {
 		AppsInfo <- app
+		time.Sleep(150 * time.Millisecond)
 	}
 	rApps++
-
-	select {
-	case Urls <- url:
-		//
-	default:
-		//
-	}
+	Urls <- url
 
 }
