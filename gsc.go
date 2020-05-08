@@ -134,7 +134,7 @@ func main() {
 }
 
 func getNextUrls(url string, NextUrls chan string, urlStore map[string]bool, mapMutex *sync.RWMutex) {
-	time.Sleep(400 * time.Millisecond)
+	time.Sleep(550 * time.Millisecond)
 	resp, err := http.Get(url)
 	checkError(err)
 
@@ -166,7 +166,7 @@ func getNextUrls(url string, NextUrls chan string, urlStore map[string]bool, map
 }
 
 func getAppInfo(url string, AppsInfo chan App, Urls chan string) {
-	time.Sleep(400 * time.Millisecond)
+	time.Sleep(550 * time.Millisecond)
 	resp, err := http.Get(url)
 	checkError(err)
 
@@ -188,7 +188,7 @@ func getAppInfo(url string, AppsInfo chan App, Urls chan string) {
 	app.installs = doc.Find("span.EymY4b").Text()
 	app.url = url
 
-	if app.name == "" {
+	if app.name == "" && app.publisher == "" {
 		naApps++
 	} else {
 		AppsInfo <- app
