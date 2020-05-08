@@ -39,7 +39,7 @@ func writeToCSV(AppsInfo chan App, w *csv.Writer) {
 
 func checkError(err error) {
 	if err != nil {
-		log.Panicln(err)
+		log.Println(err) // Panicln(err)
 	}
 }
 
@@ -48,9 +48,9 @@ func main() {
 	wApps = 0
 	naApps = 0
 
-	AppsInfo := make(chan App, 1000)
-	Urls := make(chan string, 3000)
-	NextUrls := make(chan string, 5000)
+	AppsInfo := make(chan App, 5000)
+	Urls := make(chan string, 5000)
+	NextUrls := make(chan string, 20000)
 
 	urlStore := make(map[string]bool)
 	mapMutex := sync.RWMutex{}
@@ -107,7 +107,7 @@ func main() {
 		}
 	}()
 
-	for i := 0; i < 2000; i++ {
+	for i := 0; i < 1000; i++ {
 		go func() {
 			for url := range Urls {
 				getNextUrls(url, NextUrls, urlStore, &mapMutex) // go to each url to get NextUrls
@@ -118,7 +118,7 @@ func main() {
 	for i := 0; i < 2000; i++ {
 		go func() {
 			for url := range NextUrls {
-				getAppInfo(url, AppsInfo, Urls) // go to each url to get info and find more urls
+				getAppInfo(url, AppsInfo, Urls, NextUrls) // go to each url to get info and find more urls
 			}
 		}()
 
@@ -134,7 +134,7 @@ func main() {
 }
 
 func getNextUrls(url string, NextUrls chan string, urlStore map[string]bool, mapMutex *sync.RWMutex) {
-	time.Sleep(550 * time.Millisecond)
+	time.Sleep(1950 * time.Millisecond)
 	resp, err := http.Get(url)
 	checkError(err)
 
@@ -164,8 +164,8 @@ func getNextUrls(url string, NextUrls chan string, urlStore map[string]bool, map
 
 }
 
-func getAppInfo(url string, AppsInfo chan App, Urls chan string) {
-	time.Sleep(550 * time.Millisecond)
+func getAppInfo(url string, AppsInfo chan App, Urls chan string, NextUrls chan string) {
+	time.Sleep(1950 * time.Millisecond)
 	resp, err := http.Get(url)
 	checkError(err)
 
@@ -189,11 +189,12 @@ func getAppInfo(url string, AppsInfo chan App, Urls chan string) {
 
 	if app.name == "" && app.publisher == "" {
 		naApps++
+		time.Sleep(550 * time.Millisecond)
 	} else {
 		AppsInfo <- app
 		time.Sleep(150 * time.Millisecond)
 	}
-	rApps++
 	Urls <- url
+	rApps++
 
 }
