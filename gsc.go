@@ -148,17 +148,16 @@ func getNextUrls(url string, NextUrls chan string, urlStore map[string]bool, map
 			_, prs := urlStore[next]
 			mapMutex.Unlock()
 			if ok && !prs {
-
 				mapMutex.Lock()
-				urlStore[next] = true
-				mapMutex.Unlock()
 
 				select {
 				case NextUrls <- "https://play.google.com" + next:
-					//
+					urlStore[next] = true
 				default:
 					skipped++
 				}
+
+				mapMutex.Unlock()
 
 			}
 		})
