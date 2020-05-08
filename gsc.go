@@ -30,7 +30,7 @@ var skipped int
 
 func writeToCSV(AppsInfo chan App, w *csv.Writer) {
 	for app := range AppsInfo {
-		w.Write([]string{fmt.Sprint(wApps + 1), app.name, app.publisher, app.installs, app.adds, app.genre, app.ratings, app.url})
+		w.Write([]string{app.name, app.publisher, app.installs, app.adds, app.genre, app.ratings, app.url})
 		w.Flush()
 		wApps++
 		println(rApps, wApps, naApps, skipped)
@@ -107,7 +107,7 @@ func main() {
 		}
 	}()
 
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 2000; i++ {
 		go func() {
 			for url := range Urls {
 				getNextUrls(url, NextUrls, urlStore, &mapMutex) // go to each url to get NextUrls
