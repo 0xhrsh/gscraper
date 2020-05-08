@@ -185,9 +185,9 @@ func getAppInfo(url string, AppsInfo chan App, Urls chan string) {
 	if app.name == "" {
 		naApps++
 	} else {
-		rApps++
+		AppsInfo <- app
 	}
-	AppsInfo <- app
+	rApps++
 
 	select {
 	case Urls <- url:
