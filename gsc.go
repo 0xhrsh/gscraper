@@ -30,7 +30,7 @@ var skipped int
 
 func writeToCSV(AppsInfo chan App, w *csv.Writer) {
 	for app := range AppsInfo {
-		w.Write([]string{app.name, app.publisher, app.installs, app.adds, app.genre, app.ratings, app.url})
+		w.Write([]string{fmt.Sprint(wApps+1, app.name), app.publisher, app.installs, app.adds, app.genre, app.ratings, app.url})
 		w.Flush()
 		wApps++
 		println(rApps, wApps, naApps, skipped)
@@ -48,9 +48,9 @@ func main() {
 	wApps = 0
 	naApps = 0
 
-	AppsInfo := make(chan App, 5000)
-	Urls := make(chan string, 5000)
-	NextUrls := make(chan string, 20000)
+	AppsInfo := make(chan App)           //, 500)
+	Urls := make(chan string, 500)       //, 1000)
+	NextUrls := make(chan string, 50000) //, 20000)
 
 	urlStore := make(map[string]bool)
 	mapMutex := sync.RWMutex{}
@@ -103,11 +103,12 @@ func main() {
 	go func() {
 		for i := 0; i < 37; i++ {
 			Urls <- seed[i]
+			time.Sleep(40 * time.Second)
 
 		}
 	}()
 
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 90; i++ {
 		go func() {
 			for url := range Urls {
 				getNextUrls(url, NextUrls, urlStore, &mapMutex) // go to each url to get NextUrls
@@ -115,7 +116,7 @@ func main() {
 		}()
 	}
 
-	for i := 0; i < 2000; i++ {
+	for i := 0; i < 300; i++ {
 		go func() {
 			for url := range NextUrls {
 				getAppInfo(url, AppsInfo, Urls, NextUrls) // go to each url to get info and find more urls
@@ -128,18 +129,50 @@ func main() {
 
 	var inp string
 	fmt.Scanln(&inp)
+
+	go func() {
+		fmt.Println("App info:", <-AppsInfo)
+	}()
+
+	go func() {
+		fmt.Println("Next Url:", <-NextUrls)
+	}()
+
+	go func() {
+		fmt.Println("Urls:", <-Urls)
+	}()
+
+	go func() {
+		fmt.Println("here")
+		for i := 0; i < 100; i++ {
+			Urls <- fmt.Sprintf("https://play.google.com/store/search?q=%s&c=apps", string(32+i))
+			time.Sleep(10 * time.Second)
+
+		}
+	}()
+
+	fmt.Scanln(&inp)
+	fmt.Scanln(&inp)
 	elapsed := time.Since(t)
-	fmt.Printf("Time to scrape %d Apps is %v\n", wApps, elapsed)
+	fmt.Printf("\nTime to scrape %d Apps is %v\n", wApps, elapsed)
 
 }
 
 func getNextUrls(url string, NextUrls chan string, urlStore map[string]bool, mapMutex *sync.RWMutex) {
-	time.Sleep(1950 * time.Millisecond)
+
 	resp, err := http.Get(url)
-	checkError(err)
+	if err != nil {
+		log.Printf(fmt.Sprint(err))
+		time.Sleep(2000 * time.Millisecond)
+		return
+	}
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	checkError(err)
+	if err != nil {
+		log.Printf(fmt.Sprint(err))
+		time.Sleep(2000 * time.Millisecond)
+		return
+	}
 
 	doc.Find("a.poRVub").Each(
 		func(i int, s *goquery.Selection) {
@@ -154,6 +187,7 @@ func getNextUrls(url string, NextUrls chan string, urlStore map[string]bool, map
 				case NextUrls <- "https://play.google.com" + next:
 					urlStore[next] = true
 				default:
+					time.Sleep(2000 * time.Millisecond)
 					skipped++
 				}
 
@@ -165,12 +199,36 @@ func getNextUrls(url string, NextUrls chan string, urlStore map[string]bool, map
 }
 
 func getAppInfo(url string, AppsInfo chan App, Urls chan string, NextUrls chan string) {
-	time.Sleep(1950 * time.Millisecond)
+
 	resp, err := http.Get(url)
-	checkError(err)
+	if err != nil {
+		log.Printf(fmt.Sprint(err))
+		// time.Sleep(2000 * time.Millisecond)
+
+		select {
+		case NextUrls <- url:
+		default:
+			time.Sleep(2000 * time.Millisecond)
+			naApps++
+		}
+
+		return
+	}
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	checkError(err)
+	if err != nil {
+		log.Printf(fmt.Sprint(err))
+		// time.Sleep(2000 * time.Millisecond)
+
+		select {
+		case NextUrls <- url:
+		default:
+			time.Sleep(2000 * time.Millisecond)
+			naApps++
+		}
+
+		return
+	}
 
 	app := App{}
 	var info [2]string
@@ -186,15 +244,18 @@ func getAppInfo(url string, AppsInfo chan App, Urls chan string, NextUrls chan s
 	app.adds = doc.Find("div.bSIuKf").Text()
 	app.installs = doc.Find("span.EymY4b").Text()
 	app.url = url
-
+	rApps++
 	if app.name == "" && app.publisher == "" {
 		naApps++
-		time.Sleep(550 * time.Millisecond)
+		select {
+		case NextUrls <- url:
+		default:
+			time.Sleep(1500 * time.Millisecond)
+		}
+
 	} else {
 		AppsInfo <- app
-		time.Sleep(150 * time.Millisecond)
 	}
 	Urls <- url
-	rApps++
 
 }
