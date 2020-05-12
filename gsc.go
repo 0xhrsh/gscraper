@@ -1,39 +1,124 @@
 package main
 
 import (
-	"encoding/csv"
+	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	_ "github.com/lib/pq"
 )
 
 // App contains app information
 type App struct {
-	name      string
-	ratings   string
-	adds      string
-	publisher string
-	installs  string
-	genre     string
-	url       string
+	Name      string `json:"Name"`
+	Ratings   string `json:"Ratings"`
+	Adds      string `json:"Adds"`
+	Publisher string `json:"Publisher"`
+	Installs  string `json:"Installs"`
+	Genre     string `json:"Genre"`
+	URL       string `json:"Url"`
 }
 
 var rApps int
 var wApps int
 var naApps int
 var skipped int
+var urlsLeft int
 
-func writeToCSV(AppsInfo chan App, w *csv.Writer) {
+const (
+	host     = "localhost"
+	port     = 5432
+	user     = "admin"
+	password = "admin"
+	dbname   = "apps"
+)
+
+var sqlStatement = `
+INSERT INTO apps (url, data)
+VALUES ($1, $2)`
+
+func getAppInfo(url string, AppsInfo chan App, Urls chan string, NextUrls chan string) {
+
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Printf(fmt.Sprint(err))
+		// time.Sleep(2000 * time.Millisecond)
+
+		select {
+		case NextUrls <- url:
+		default:
+			time.Sleep(2000 * time.Millisecond)
+			skipped++
+		}
+
+		return
+	}
+
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		log.Printf(fmt.Sprint(err))
+		// time.Sleep(2000 * time.Millisecond)
+
+		select {
+		case NextUrls <- url:
+		default:
+			time.Sleep(2000 * time.Millisecond)
+			skipped++
+		}
+
+		return
+	}
+
+	app := App{}
+	var info [2]string
+	app.Name = doc.Find("h1.AHFaub").Text()
+	doc.Find("span.T32cc.UAO9ie").Each(func(i int, s *goquery.Selection) {
+		if i < 2 {
+			info[i] = s.Text()
+		}
+	})
+	app.Publisher = info[0]
+	app.Genre = info[1]
+	app.Ratings = doc.Find("div.BHMmbe").Text()
+	app.Adds = doc.Find("div.bSIuKf").Text()
+	app.Installs = doc.Find("span.EymY4b").Text()
+	app.URL = url
+	rApps++
+	if app.Name == "" && app.Publisher == "" {
+		naApps++
+		select {
+		case NextUrls <- url:
+		default:
+			time.Sleep(1500 * time.Millisecond)
+			urlsLeft--
+		}
+
+	} else {
+		AppsInfo <- app
+		urlsLeft--
+	}
+
+	Urls <- url
+
+}
+
+func writeToCSV(AppsInfo chan App, db *sql.DB) {
 	for app := range AppsInfo {
-		w.Write([]string{fmt.Sprint(wApps+1, app.name), app.publisher, app.installs, app.adds, app.genre, app.ratings, app.url})
-		w.Flush()
-		wApps++
-		println(rApps, wApps, naApps, skipped)
+		x, err := json.Marshal(app)
+		if err != nil {
+			panic(err)
+		}
+		_, err = db.Exec(sqlStatement, app.URL, x)
+		if err == nil {
+			wApps++
+			println(rApps, wApps, naApps, skipped, urlsLeft)
+		}
+
 	}
 }
 
@@ -55,11 +140,104 @@ func main() {
 	urlStore := make(map[string]bool)
 	mapMutex := sync.RWMutex{}
 
-	file, _ := os.OpenFile("Data.csv", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-	defer file.Close()
-	writer := csv.NewWriter(file)
-	defer writer.Flush()
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
+		"password=%s dbname=%s sslmode=disable",
+		host, port, user, password, dbname)
+	db, err := sql.Open("postgres", psqlInfo)
 
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	err = db.Ping()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Successfully connected!")
+
+	t := time.Now()
+
+	feedSeedurl(Urls)
+
+	for i := 0; i < 100; i++ {
+		go func() {
+			for url := range Urls {
+				getNextUrls(url, NextUrls, urlStore, &mapMutex) // go to each url to get NextUrls
+				time.Sleep(1 * time.Second)
+			}
+		}()
+	}
+
+	for i := 0; i < 300; i++ {
+		go func() {
+			for url := range NextUrls {
+				getAppInfo(url, AppsInfo, Urls, NextUrls) // go to each url to get info and find more urls
+				time.Sleep(2 * time.Second)
+			}
+		}()
+
+	}
+
+	go writeToCSV(AppsInfo, db) // write the Apps in AppsInfo to a csv file
+
+	// Finishing Tasks
+	var inp string
+	fmt.Scanln(&inp)
+
+	go func() {
+		fmt.Println("Next Url:", <-NextUrls)
+	}()
+
+	fmt.Scanln(&inp)
+
+	elapsed := time.Since(t)
+	fmt.Printf("\nTime to scrape %d Apps is %v\n", wApps, elapsed)
+
+}
+
+func getNextUrls(url string, NextUrls chan string, urlStore map[string]bool, mapMutex *sync.RWMutex) {
+
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Printf(fmt.Sprint(err))
+		time.Sleep(2000 * time.Millisecond)
+		return
+	}
+
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		log.Printf(fmt.Sprint(err))
+		time.Sleep(2000 * time.Millisecond)
+		return
+	}
+
+	doc.Find("a.poRVub").Each(
+		func(i int, s *goquery.Selection) {
+			next, ok := s.Attr("href")
+			mapMutex.Lock()
+			_, prs := urlStore[next]
+			mapMutex.Unlock()
+			if ok && !prs {
+				mapMutex.Lock()
+
+				select {
+				case NextUrls <- "https://play.google.com" + next:
+					urlStore[next] = true
+					urlsLeft++
+				default:
+					time.Sleep(2000 * time.Millisecond)
+					skipped++
+				}
+
+				mapMutex.Unlock()
+
+			}
+		})
+
+}
+
+func feedSeedurl(Urls chan string) {
 	var seed [37]string
 	seed[0] = "https://play.google.com/store/apps/top"
 	seed[1] = "https://play.google.com/store/apps"
@@ -99,7 +277,6 @@ func main() {
 	seed[35] = "https://play.google.com/store/apps/category/GAME_RACING"
 	seed[36] = "https://play.google.com/store/apps/category/BEAUTY"
 
-	t := time.Now()
 	go func() {
 		for i := 0; i < 37; i++ {
 			Urls <- seed[i]
@@ -108,154 +285,35 @@ func main() {
 		}
 	}()
 
-	for i := 0; i < 90; i++ {
-		go func() {
-			for url := range Urls {
-				getNextUrls(url, NextUrls, urlStore, &mapMutex) // go to each url to get NextUrls
-			}
-		}()
-	}
-
-	for i := 0; i < 300; i++ {
-		go func() {
-			for url := range NextUrls {
-				getAppInfo(url, AppsInfo, Urls, NextUrls) // go to each url to get info and find more urls
-			}
-		}()
-
-	}
-
-	go writeToCSV(AppsInfo, writer) // write the Apps in AppsInfo to a csv file
-
-	var inp string
-	fmt.Scanln(&inp)
-
 	go func() {
-		fmt.Println("App info:", <-AppsInfo)
-	}()
+		time.Sleep(25 * time.Minute)
+		inp := "a"
 
-	go func() {
-		fmt.Println("Next Url:", <-NextUrls)
-	}()
+		for {
 
-	go func() {
-		fmt.Println("Urls:", <-Urls)
-	}()
-
-	go func() {
-		fmt.Println("here")
-		for i := 0; i < 100; i++ {
-			Urls <- fmt.Sprintf("https://play.google.com/store/search?q=%s&c=apps", string(32+i))
-			time.Sleep(10 * time.Second)
-
+			Urls <- fmt.Sprintf("https://play.google.com/store/search?q=%s&c=apps", inp)
+			inp = biggerStr(inp)
 		}
-	}()
 
-	fmt.Scanln(&inp)
-	fmt.Scanln(&inp)
-	elapsed := time.Since(t)
-	fmt.Printf("\nTime to scrape %d Apps is %v\n", wApps, elapsed)
+	}()
 
 }
 
-func getNextUrls(url string, NextUrls chan string, urlStore map[string]bool, mapMutex *sync.RWMutex) {
-
-	resp, err := http.Get(url)
-	if err != nil {
-		log.Printf(fmt.Sprint(err))
-		time.Sleep(2000 * time.Millisecond)
-		return
-	}
-
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	if err != nil {
-		log.Printf(fmt.Sprint(err))
-		time.Sleep(2000 * time.Millisecond)
-		return
-	}
-
-	doc.Find("a.poRVub").Each(
-		func(i int, s *goquery.Selection) {
-			next, ok := s.Attr("href")
-			mapMutex.Lock()
-			_, prs := urlStore[next]
-			mapMutex.Unlock()
-			if ok && !prs {
-				mapMutex.Lock()
-
-				select {
-				case NextUrls <- "https://play.google.com" + next:
-					urlStore[next] = true
-				default:
-					time.Sleep(2000 * time.Millisecond)
-					skipped++
-				}
-
-				mapMutex.Unlock()
-
+func biggerStr(a string) string {
+	n := len(a) - 1
+	out := ""
+	add := 1
+	for add > 0 || n >= 0 {
+		if n < 0 {
+			out = "a" + out
+			add = 0
+		} else {
+			out = string(97+(int(a[n])-int('a')+add)%26) + out
+			if add == 1 && a[n] != 'z' {
+				add = 0
 			}
-		})
-
-}
-
-func getAppInfo(url string, AppsInfo chan App, Urls chan string, NextUrls chan string) {
-
-	resp, err := http.Get(url)
-	if err != nil {
-		log.Printf(fmt.Sprint(err))
-		// time.Sleep(2000 * time.Millisecond)
-
-		select {
-		case NextUrls <- url:
-		default:
-			time.Sleep(2000 * time.Millisecond)
-			naApps++
 		}
-
-		return
+		n--
 	}
-
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	if err != nil {
-		log.Printf(fmt.Sprint(err))
-		// time.Sleep(2000 * time.Millisecond)
-
-		select {
-		case NextUrls <- url:
-		default:
-			time.Sleep(2000 * time.Millisecond)
-			naApps++
-		}
-
-		return
-	}
-
-	app := App{}
-	var info [2]string
-	app.name = doc.Find("h1.AHFaub").Text()
-	doc.Find("span.T32cc.UAO9ie").Each(func(i int, s *goquery.Selection) {
-		if i < 2 {
-			info[i] = s.Text()
-		}
-	})
-	app.publisher = info[0]
-	app.genre = info[1]
-	app.ratings = doc.Find("div.BHMmbe").Text()
-	app.adds = doc.Find("div.bSIuKf").Text()
-	app.installs = doc.Find("span.EymY4b").Text()
-	app.url = url
-	rApps++
-	if app.name == "" && app.publisher == "" {
-		naApps++
-		select {
-		case NextUrls <- url:
-		default:
-			time.Sleep(1500 * time.Millisecond)
-		}
-
-	} else {
-		AppsInfo <- app
-	}
-	Urls <- url
-
+	return out
 }
