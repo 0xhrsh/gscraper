@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/knq/chromedp"
 	_ "github.com/lib/pq"
 )
 
@@ -119,6 +121,7 @@ func writeToCSV(AppsInfo chan App, db *sql.DB) {
 			wApps++
 			println(rApps, wApps, naApps, skipped, urlsLeft)
 		}
+		// println(rApps, wApps, naApps, skipped, urlsLeft)
 
 	}
 }
@@ -161,11 +164,23 @@ func main() {
 
 	feedSeedurl(Urls)
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10; i++ {
 		go func() {
+			opts := append(chromedp.DefaultExecAllocatorOptions[:],
+				chromedp.Flag("headless", true),
+				chromedp.Flag("disable-gpu", false),
+				chromedp.Flag("enable-automation", false),
+				chromedp.Flag("disable-extensions", true),
+			)
+
+			allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
+			defer cancel()
+
+			ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(log.Printf))
+			defer cancel()
 			for url := range Urls {
-				getNextUrls(url, NextUrls, urlStore, &mapMutex) // go to each url to get NextUrls
-				time.Sleep(1 * time.Second)
+				getNextUrls(ctx, url, NextUrls, urlStore, &mapMutex) // go to each url to get NextUrls
+				// time.Sleep(2 * time.Second)
 			}
 		}()
 	}
@@ -174,7 +189,7 @@ func main() {
 		go func() {
 			for url := range NextUrls {
 				getAppInfo(url, AppsInfo, Urls, NextUrls) // go to each url to get info and find more urls
-				time.Sleep(2 * time.Second)
+				// time.Sleep(2 * time.Second)
 			}
 		}()
 
@@ -197,24 +212,16 @@ func main() {
 
 }
 
-func getNextUrls(url string, NextUrls chan string, urlStore map[string]bool, mapMutex *sync.RWMutex) {
+func getNextUrls(ctx context.Context, url string, NextUrls chan string, urlStore map[string]bool, mapMutex *sync.RWMutex) {
 
-	// resp, err := http.Get(url)
-	// if err != nil {
-	// 	log.Printf(fmt.Sprint(err))
-	// 	time.Sleep(2000 * time.Millisecond)
-	// 	return
-	// }
-
-	// doc, err := goquery.NewDocumentFromReader(resp.Body)
-	// if err != nil {
-	// 	log.Printf(fmt.Sprint(err))
-	// 	time.Sleep(2000 * time.Millisecond)
-	// 	return
-	// }
-
-	for _, next := range GetURLFromPage(url) {
-		// println(next)
+	var out []string
+	if err := chromedp.Run(ctx,
+		chromedp.Navigate(url),
+		chromedp.EvaluateAsDevTools(`Array.from(document.getElementsByClassName("poRVub")).map(a => a.href);`, &out),
+	); err != nil {
+		log.Fatal(err)
+	}
+	for _, next := range out {
 		mapMutex.Lock()
 		_, prs := urlStore[next]
 		mapMutex.Unlock()
@@ -280,7 +287,7 @@ func feedSeedurl(Urls chan string) {
 	go func() {
 		for i := 0; i < 37; i++ {
 			Urls <- seed[i]
-			time.Sleep(40 * time.Second)
+			// time.Sleep(10 * time.Second)
 
 		}
 	}()
@@ -289,10 +296,10 @@ func feedSeedurl(Urls chan string) {
 		time.Sleep(25 * time.Minute)
 		inp := "a"
 
-		for {
-
+		for i := 0; i < 500000; i++ {
 			Urls <- fmt.Sprintf("https://play.google.com/store/search?q=%s&c=apps", inp)
 			inp = biggerStr(inp)
+			time.Sleep(3 * time.Second)
 		}
 
 	}()
