@@ -159,7 +159,7 @@ func main() {
 
 	feedSeedurl(Urls, NextUrls)
 
-	for i := 0; i < 150; i++ {
+	for i := 0; i < 50; i++ {
 		go func() {
 			for url := range Urls {
 				getNextUrls(url, NextUrls, urlStore, &mapMutex) // go to each url to get NextUrls
@@ -168,10 +168,11 @@ func main() {
 		}()
 	}
 
-	for i := 0; i < 30000; i++ {
+	for i := 0; i < 150; i++ {
 		go func() {
 			for url := range NextUrls {
 				getAppInfo(url, AppsInfo, Urls, NextUrls) // go to each url to get info and find more urls
+				time.Sleep(300 * time.Millisecond)
 			}
 		}()
 
