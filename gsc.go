@@ -119,9 +119,9 @@ func writeToCSV(AppsInfo chan App, db *sql.DB) {
 		_, err = db.Exec(sqlStatement, app.URL, x)
 		if err == nil {
 			wApps++
-			println(rApps, wApps, naApps, skipped, urlsLeft)
+			// println(rApps, wApps, naApps, skipped, urlsLeft)
 		}
-		// println(rApps, wApps, naApps, skipped, urlsLeft)
+		println(rApps, wApps, naApps, skipped, urlsLeft)
 
 	}
 }
@@ -164,7 +164,7 @@ func main() {
 
 	feedSeedurl(Urls)
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 3; i++ {
 		go func() {
 			opts := append(chromedp.DefaultExecAllocatorOptions[:],
 				chromedp.Flag("headless", true),
@@ -185,7 +185,7 @@ func main() {
 		}()
 	}
 
-	for i := 0; i < 300; i++ {
+	for i := 0; i < 30000; i++ {
 		go func() {
 			for url := range NextUrls {
 				getAppInfo(url, AppsInfo, Urls, NextUrls) // go to each url to get info and find more urls
@@ -217,6 +217,9 @@ func getNextUrls(ctx context.Context, url string, NextUrls chan string, urlStore
 	var out []string
 	if err := chromedp.Run(ctx,
 		chromedp.Navigate(url),
+		// chromedp.EvaluateAsDevTools(`window.scrollTo(0,document.body.scrollHeight);`, &out),
+		// chromedp.EvaluateAsDevTools(`window.scrollTo(0,document.body.scrollHeight);`, &out),
+
 		chromedp.EvaluateAsDevTools(`Array.from(document.getElementsByClassName("poRVub")).map(a => a.href);`, &out),
 	); err != nil {
 		log.Fatal(err)
@@ -285,23 +288,24 @@ func feedSeedurl(Urls chan string) {
 	seed[36] = "https://play.google.com/store/apps/category/BEAUTY"
 
 	go func() {
+
+		inp := "a"
+
+		for i := 0; i < 10000000; i++ {
+			Urls <- fmt.Sprintf("https://play.google.com/store/search?q=%s&c=apps", inp)
+			inp = biggerStr(inp)
+			// time.Sleep(3 * time.Second)
+		}
+
+	}()
+
+	go func() {
+		time.Sleep(5 * time.Minute)
 		for i := 0; i < 37; i++ {
 			Urls <- seed[i]
 			// time.Sleep(10 * time.Second)
 
 		}
-	}()
-
-	go func() {
-		time.Sleep(25 * time.Minute)
-		inp := "a"
-
-		for i := 0; i < 500000; i++ {
-			Urls <- fmt.Sprintf("https://play.google.com/store/search?q=%s&c=apps", inp)
-			inp = biggerStr(inp)
-			time.Sleep(3 * time.Second)
-		}
-
 	}()
 
 }
