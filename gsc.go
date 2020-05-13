@@ -113,6 +113,7 @@ func writeToCSV(AppsInfo chan App, db *sql.DB) {
 		if err != nil {
 			panic(err)
 		}
+
 		_, err = db.Exec(sqlStatement, app.URL, x)
 		if err == nil {
 			wApps++
@@ -198,42 +199,41 @@ func main() {
 
 func getNextUrls(url string, NextUrls chan string, urlStore map[string]bool, mapMutex *sync.RWMutex) {
 
-	resp, err := http.Get(url)
-	if err != nil {
-		log.Printf(fmt.Sprint(err))
-		time.Sleep(2000 * time.Millisecond)
-		return
-	}
+	// resp, err := http.Get(url)
+	// if err != nil {
+	// 	log.Printf(fmt.Sprint(err))
+	// 	time.Sleep(2000 * time.Millisecond)
+	// 	return
+	// }
 
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	if err != nil {
-		log.Printf(fmt.Sprint(err))
-		time.Sleep(2000 * time.Millisecond)
-		return
-	}
+	// doc, err := goquery.NewDocumentFromReader(resp.Body)
+	// if err != nil {
+	// 	log.Printf(fmt.Sprint(err))
+	// 	time.Sleep(2000 * time.Millisecond)
+	// 	return
+	// }
 
-	doc.Find("a.poRVub").Each(
-		func(i int, s *goquery.Selection) {
-			next, ok := s.Attr("href")
+	for _, next := range GetURLFromPage(url) {
+		// println(next)
+		mapMutex.Lock()
+		_, prs := urlStore[next]
+		mapMutex.Unlock()
+		if !prs {
 			mapMutex.Lock()
-			_, prs := urlStore[next]
-			mapMutex.Unlock()
-			if ok && !prs {
-				mapMutex.Lock()
 
-				select {
-				case NextUrls <- "https://play.google.com" + next:
-					urlStore[next] = true
-					urlsLeft++
-				default:
-					time.Sleep(2000 * time.Millisecond)
-					skipped++
-				}
-
-				mapMutex.Unlock()
-
+			select {
+			case NextUrls <- next:
+				urlStore[next] = true
+				urlsLeft++
+			default:
+				time.Sleep(2000 * time.Millisecond)
+				skipped++
 			}
-		})
+
+			mapMutex.Unlock()
+
+		}
+	}
 
 }
 
