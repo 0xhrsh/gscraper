@@ -119,7 +119,7 @@ func writeToPG(AppsInfo chan App, db *sql.DB) {
 			wApps++
 			// println(rApps, wApps, naApps, skipped, urlsLeft)
 		}
-		println(rApps, wApps, naApps, skipped, urlsLeft)
+		fmt.Println(rApps, wApps, naApps, skipped, urlsLeft)
 
 	}
 }
@@ -134,7 +134,7 @@ func main() {
 
 	AppsInfo := make(chan App)
 	Urls := make(chan string, 500)
-	NextUrls := make(chan string, 50000)
+	NextUrls := make(chan string, 300000)
 
 	urlStore := make(map[string]bool)
 	mapMutex := sync.RWMutex{}
@@ -159,7 +159,7 @@ func main() {
 
 	feedSeedurl(Urls, NextUrls)
 
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 150; i++ {
 		go func() {
 			for url := range Urls {
 				getNextUrls(url, NextUrls, urlStore, &mapMutex) // go to each url to get NextUrls
@@ -168,11 +168,11 @@ func main() {
 		}()
 	}
 
-	for i := 0; i < 150; i++ {
+	for i := 0; i < 750; i++ {
 		go func() {
 			for url := range NextUrls {
 				getAppInfo(url, AppsInfo, Urls, NextUrls) // go to each url to get info and find more urls
-				time.Sleep(300 * time.Millisecond)
+				// time.Sleep(300 * time.Millisecond)
 			}
 		}()
 
@@ -276,7 +276,7 @@ func feedSeedurl(Urls chan string, NextUrls chan string) {
 
 	go func() {
 		inp := "a"
-		for i := 0; i < 10000000; i++ {
+		for i := 0; i < 100000000; i++ {
 			dumpUrls <- fmt.Sprintf("https://play.google.com/store/search?q=%s&c=apps", inp)
 			inp = biggerStr(inp)
 			// time.Sleep(3 * time.Second)
@@ -288,7 +288,7 @@ func feedSeedurl(Urls chan string, NextUrls chan string) {
 		time.Sleep(5 * time.Minute)
 		for i := 0; i < 37; i++ {
 			dumpUrls <- seed[i]
-			// time.Sleep(10 * time.Second)
+			time.Sleep(10 * time.Second)
 
 		}
 	}()

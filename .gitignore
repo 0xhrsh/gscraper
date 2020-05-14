@@ -1,3 +1,5 @@
 *.csv
 service/*
 *.env
+*.log
+debug.log
