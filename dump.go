@@ -46,7 +46,7 @@ func parseDumpPages(dumpUrls chan string, NextUrls chan string) {
 				); err != nil {
 					log.Fatal(err)
 				}
-				fmt.Println("\n<==>\n", n, "\n<==>\n")
+				fmt.Println("<==>\n", n, "\n<==>")
 				for _, next := range out {
 					NextUrls <- next
 					urlsLeft++

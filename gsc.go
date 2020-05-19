@@ -184,7 +184,7 @@ func main() {
 	var inp string
 	fmt.Scanln(&inp)
 
-	time.Sleep(3 * time.Hour)
+	time.Sleep(15 * time.Hour)
 
 	elapsed := time.Since(t)
 	fmt.Printf("\nTime to scrape %d Apps is %v\n", wApps, elapsed)
