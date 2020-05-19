@@ -11,7 +11,7 @@ import (
 
 func parseDumpPages(dumpUrls chan string, NextUrls chan string) {
 
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 3; i++ {
 		go func() {
 			opts := append(chromedp.DefaultExecAllocatorOptions[:],
 				chromedp.Flag("headless", true),
@@ -32,21 +32,21 @@ func parseDumpPages(dumpUrls chan string, NextUrls chan string) {
 				var res []byte
 				if err := chromedp.Run(ctx,
 					chromedp.Navigate(url),
-					chromedp.Sleep(200*time.Millisecond),
+					chromedp.Sleep(1200*time.Millisecond),
 					chromedp.Evaluate(`window.scrollTo(0,document.body.scrollHeight);`, &res),
-					chromedp.Sleep(2700*time.Millisecond),
+					chromedp.Sleep(2000*time.Millisecond),
 					chromedp.Evaluate(`window.scrollTo(0,document.body.scrollHeight);`, &res),
-					chromedp.Sleep(2900*time.Millisecond),
+					chromedp.Sleep(1900*time.Millisecond),
 					chromedp.Evaluate(`window.scrollTo(0,document.body.scrollHeight);`, &res),
-					chromedp.Sleep(2900*time.Millisecond),
+					chromedp.Sleep(1900*time.Millisecond),
 					chromedp.Evaluate(`window.scrollTo(0,document.body.scrollHeight);`, &res),
-					chromedp.Sleep(2900*time.Millisecond),
+					chromedp.Sleep(2400*time.Millisecond),
 					chromedp.EvaluateAsDevTools(`document.getElementsByClassName("poRVub").length;`, &n),
 					chromedp.EvaluateAsDevTools(`Array.from(document.getElementsByClassName("poRVub")).map(a => a.href);`, &out),
 				); err != nil {
 					log.Fatal(err)
 				}
-				fmt.Println(n)
+				fmt.Println("\n<==>\n", n, "\n<==>\n")
 				for _, next := range out {
 					NextUrls <- next
 					urlsLeft++

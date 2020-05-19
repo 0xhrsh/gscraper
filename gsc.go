@@ -132,8 +132,8 @@ func checkError(err error) {
 
 func main() {
 
-	AppsInfo := make(chan App)
-	Urls := make(chan string, 500)
+	AppsInfo := make(chan App, 100)
+	Urls := make(chan string, 50000)
 	NextUrls := make(chan string, 300000)
 
 	urlStore := make(map[string]bool)
@@ -159,7 +159,7 @@ func main() {
 
 	feedSeedurl(Urls, NextUrls)
 
-	for i := 0; i < 150; i++ {
+	for i := 0; i < 110; i++ {
 		go func() {
 			for url := range Urls {
 				getNextUrls(url, NextUrls, urlStore, &mapMutex) // go to each url to get NextUrls
@@ -168,7 +168,7 @@ func main() {
 		}()
 	}
 
-	for i := 0; i < 750; i++ {
+	for i := 0; i < 800; i++ {
 		go func() {
 			for url := range NextUrls {
 				getAppInfo(url, AppsInfo, Urls, NextUrls) // go to each url to get info and find more urls
@@ -184,7 +184,7 @@ func main() {
 	var inp string
 	fmt.Scanln(&inp)
 
-	fmt.Scanln(&inp)
+	time.Sleep(3 * time.Hour)
 
 	elapsed := time.Since(t)
 	fmt.Printf("\nTime to scrape %d Apps is %v\n", wApps, elapsed)
@@ -224,9 +224,7 @@ func getNextUrls(url string, NextUrls chan string, urlStore map[string]bool, map
 					time.Sleep(2000 * time.Millisecond)
 					skipped++
 				}
-
 				mapMutex.Unlock()
-
 			}
 		})
 
@@ -279,17 +277,13 @@ func feedSeedurl(Urls chan string, NextUrls chan string) {
 		for i := 0; i < 100000000; i++ {
 			dumpUrls <- fmt.Sprintf("https://play.google.com/store/search?q=%s&c=apps", inp)
 			inp = biggerStr(inp)
-			// time.Sleep(3 * time.Second)
 		}
 
 	}()
 
 	go func() {
-		time.Sleep(5 * time.Minute)
 		for i := 0; i < 37; i++ {
 			dumpUrls <- seed[i]
-			time.Sleep(10 * time.Second)
-
 		}
 	}()
 
