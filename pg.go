@@ -29,7 +29,11 @@ func writeToPG(AppsInfo chan App, db *sql.DB) {
 		if err == nil {
 			wApps++
 		}
-		fmt.Println(rApps, wApps, naApps, skipped, urlsLeft)
+		if wApps > 0 {
+			fmt.Println(rApps, wApps, naApps, skipped, urlsLeft, rApps/wApps)
+		} else {
+			fmt.Println(rApps, wApps, naApps, skipped, urlsLeft)
+		}
 
 	}
 }
