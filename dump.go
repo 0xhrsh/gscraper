@@ -4,14 +4,15 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/knq/chromedp"
 )
 
-func parseDumpPages(dumpUrls chan string, NextUrls chan string) {
+func parseDumpPages(dumpUrls chan string, NextUrls chan string, urlStore map[string]bool, mapMutex *sync.RWMutex) {
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 5; i++ {
 		go func() {
 			opts := append(chromedp.DefaultExecAllocatorOptions[:],
 				chromedp.Flag("headless", true),
@@ -32,15 +33,16 @@ func parseDumpPages(dumpUrls chan string, NextUrls chan string) {
 				var res []byte
 				if err := chromedp.Run(ctx,
 					chromedp.Navigate(url),
-					chromedp.Sleep(1200*time.Millisecond),
 					chromedp.Evaluate(`window.scrollTo(0,document.body.scrollHeight);`, &res),
-					chromedp.Sleep(2000*time.Millisecond),
+					chromedp.Sleep(2500*time.Millisecond),
 					chromedp.Evaluate(`window.scrollTo(0,document.body.scrollHeight);`, &res),
-					chromedp.Sleep(1900*time.Millisecond),
+					chromedp.Sleep(2500*time.Millisecond),
 					chromedp.Evaluate(`window.scrollTo(0,document.body.scrollHeight);`, &res),
-					chromedp.Sleep(1900*time.Millisecond),
+					chromedp.Sleep(2500*time.Millisecond),
 					chromedp.Evaluate(`window.scrollTo(0,document.body.scrollHeight);`, &res),
-					chromedp.Sleep(2400*time.Millisecond),
+					chromedp.Sleep(2500*time.Millisecond),
+					chromedp.Evaluate(`window.scrollTo(0,document.body.scrollHeight);`, &res),
+					chromedp.Sleep(2500*time.Millisecond),
 					chromedp.EvaluateAsDevTools(`document.getElementsByClassName("poRVub").length;`, &n),
 					chromedp.EvaluateAsDevTools(`Array.from(document.getElementsByClassName("poRVub")).map(a => a.href);`, &out),
 				); err != nil {
@@ -48,8 +50,17 @@ func parseDumpPages(dumpUrls chan string, NextUrls chan string) {
 				}
 				fmt.Println("<==>\n", n, "\n<==>")
 				for _, next := range out {
-					NextUrls <- next
-					urlsLeft++
+					mapMutex.Lock()
+					_, prs := urlStore[next]
+					mapMutex.Unlock()
+					if !prs {
+						mapMutex.Lock()
+						urlStore[next] = true
+						mapMutex.Unlock()
+						NextUrls <- next
+						urlsLeft++
+					}
+
 				}
 			}
 		}()
