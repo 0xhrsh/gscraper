@@ -18,6 +18,7 @@ func main() {
 	mapMutex := sync.RWMutex{}
 
 	db := connectToServer()
+	defer db.Close()
 	t := time.Now()
 
 	feedSeedurl(Urls, NextUrls, urlStore, &mapMutex)
