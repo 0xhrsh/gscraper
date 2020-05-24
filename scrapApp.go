@@ -130,19 +130,15 @@ func getNextUrls(url string, NextUrls chan string, urlStore map[string]bool, map
 			next, ok := s.Attr("href")
 			mapMutex.Lock()
 			_, prs := urlStore[next]
-			mapMutex.Unlock()
+			urlStore[next] = true
 			if ok && !prs {
-				mapMutex.Lock()
-
 				select {
 				case NextUrls <- "https://play.google.com" + next:
-					urlStore[next] = true
 					urlsLeft++
 				default:
-					time.Sleep(2000 * time.Millisecond)
 					skipped++
 				}
-				mapMutex.Unlock()
 			}
+			mapMutex.Unlock()
 		})
 }

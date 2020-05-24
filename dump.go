@@ -54,14 +54,16 @@ func parseDumpPages(dumpUrls chan string, NextUrls chan string, urlStore map[str
 				for _, next := range out {
 					mapMutex.Lock()
 					_, prs := urlStore[next]
-					mapMutex.Unlock()
+					urlStore[next] = true
 					if !prs {
-						mapMutex.Lock()
-						urlStore[next] = true
-						mapMutex.Unlock()
-						NextUrls <- next
-						urlsLeft++
+						select {
+						case NextUrls <- next:
+							urlsLeft++
+						default:
+							skipped++
+						}
 					}
+					mapMutex.Unlock()
 
 				}
 			}
