@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -61,7 +62,7 @@ func getAppInfo(url string, AppsInfo chan App, Urls chan string, NextUrls chan s
 	app.Name = doc.Find("h1.AHFaub").Text()
 	doc.Find("span.T32cc.UAO9ie").Each(func(i int, s *goquery.Selection) {
 		if i == 0 {
-			app.PublisherID = s.Find("a.hrTbp.R8zArc").AttrOr("href", "404")
+			app.PublisherID = strings.Split(s.Find("a.hrTbp.R8zArc").AttrOr("href", "=404"), "=")[1]
 		}
 		if i < 2 {
 			info[i] = s.Text()
