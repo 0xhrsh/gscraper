@@ -30,9 +30,9 @@ func writeToPG(AppsInfo chan App, db *sql.DB) {
 			wApps++
 		}
 		if wApps > 0 {
-			fmt.Println(rApps, wApps, naApps, skipped, urlsLeft, rApps/wApps)
+			fmt.Println(rApps, wApps, naApps, skipped, urlsLeft, float32(rApps)/float32(wApps))
 		} else {
-			fmt.Println(rApps, wApps, naApps, skipped, urlsLeft)
+			fmt.Println(rApps, wApps, naApps, skipped, urlsLeft, err)
 		}
 
 	}
