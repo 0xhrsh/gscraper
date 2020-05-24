@@ -90,7 +90,6 @@ func getAppInfo(url string, AppsInfo chan App, Urls chan string, NextUrls chan s
 	app.Installs = doc.Find("span.EymY4b").Text()
 	app.URL = url
 	app.Email = doc.Find("a.hrTbp.euBY6b").Text()
-	rApps++
 	if app.Name == "" && app.Publisher == "" {
 		naApps++
 		select {
@@ -102,6 +101,7 @@ func getAppInfo(url string, AppsInfo chan App, Urls chan string, NextUrls chan s
 
 	} else {
 		AppsInfo <- app
+		rApps++
 		urlsLeft--
 	}
 

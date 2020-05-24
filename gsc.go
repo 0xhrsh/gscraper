@@ -39,7 +39,9 @@ func main() {
 		}()
 	}
 
-	go writeToPG(AppsInfo, db)
+	for i := 0; i < 20; i++ {
+		go writeToPG(AppsInfo, db)
+	}
 
 	time.Sleep(100 * time.Hour)
 	elapsed := time.Since(t)
