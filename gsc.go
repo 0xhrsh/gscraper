@@ -31,7 +31,7 @@ func main() {
 		}()
 	}
 
-	for i := 0; i < 4500; i++ {
+	for i := 0; i < 5500; i++ {
 		go func() {
 			for url := range NextUrls {
 				getAppInfo(url, AppsInfo, Urls, NextUrls)
@@ -41,7 +41,7 @@ func main() {
 
 	go writeToPG(AppsInfo, db)
 
-	time.Sleep(72 * time.Hour)
+	time.Sleep(100 * time.Hour)
 	elapsed := time.Since(t)
 	fmt.Printf("\nTime to scrape %d Apps is %v\n", wApps, elapsed)
 
