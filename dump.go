@@ -40,11 +40,11 @@ func parseDumpPages(dumpUrls chan string, NextUrls chan string, urlStore map[str
 					chromedp.Evaluate(`window.scrollTo(0,document.body.scrollHeight);`, &res),
 					chromedp.Sleep(2500*time.Millisecond),
 					chromedp.Evaluate(`window.scrollTo(0,document.body.scrollHeight);`, &res),
-					chromedp.Sleep(2500*time.Millisecond),
-					chromedp.Evaluate(`window.scrollTo(0,document.body.scrollHeight);`, &res),
 					chromedp.Sleep(2000*time.Millisecond),
 					chromedp.Evaluate(`window.scrollTo(0,document.body.scrollHeight);`, &res),
 					chromedp.Sleep(1500*time.Millisecond),
+					chromedp.Evaluate(`window.scrollTo(0,document.body.scrollHeight);`, &res),
+					// chromedp.Sleep(1500*time.Millisecond),
 					chromedp.EvaluateAsDevTools(`document.getElementsByClassName("poRVub").length;`, &n),
 					chromedp.EvaluateAsDevTools(`Array.from(document.getElementsByClassName("poRVub")).map(a => a.href);`, &out),
 				); err != nil {

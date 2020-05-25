@@ -48,7 +48,7 @@ func feedSeedurl(Urls chan string, NextUrls chan string, urlStore map[string]boo
 	dumpUrls := make(chan string)
 
 	go func() {
-		inp := "a"
+		inp := "aaaa"
 		for i := 0; i < 500000000; i++ {
 			dumpUrls <- fmt.Sprintf("https://play.google.com/store/search?q=%s&c=apps", inp)
 			inp = biggerStr(inp)

@@ -37,12 +37,8 @@ func getAppInfo(url string, AppsInfo chan App, Urls chan string, NextUrls chan s
 
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Printf(fmt.Sprint(err))
-		select {
-		case NextUrls <- url:
-		default:
-			skipped++
-		}
+		log.Println("url error", fmt.Sprint(err))
+		skipped++
 		return
 	}
 

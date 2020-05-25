@@ -31,7 +31,7 @@ func main() {
 		}()
 	}
 
-	for i := 0; i < 5500; i++ {
+	for i := 0; i < 4500; i++ {
 		go func() {
 			for url := range NextUrls {
 				getAppInfo(url, AppsInfo, Urls, NextUrls)
@@ -39,7 +39,7 @@ func main() {
 		}()
 	}
 
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 10; i++ {
 		go writeToPG(AppsInfo, db)
 	}
 
