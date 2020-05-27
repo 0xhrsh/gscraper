@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 )
 
@@ -15,17 +14,13 @@ const (
 )
 
 var sqlStatement = `
-INSERT INTO apps (url, data)
-VALUES ($1, $2)`
+INSERT INTO apps (name, ratings, ads, publisher, publisherId, installs, genre, url, email, updated, size, logo)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 
 func writeToPG(AppsInfo chan App, db *sql.DB) {
 	for app := range AppsInfo {
-		x, err := json.Marshal(app)
-		if err != nil {
-			panic(err)
-		}
 
-		_, err = db.Exec(sqlStatement, app.URL, x)
+		_, err := db.Exec(sqlStatement, app.Name, app.Ratings, app.Ads, app.Publisher, app.PublisherID, app.Installs, app.Genre, app.URL, app.Email, app.Updated, app.Size, app.Logo)
 		if err == nil {
 			wApps++
 		}

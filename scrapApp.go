@@ -15,7 +15,7 @@ import (
 type App struct {
 	Name        string `json:"Name"`
 	Ratings     string `json:"Ratings"`
-	Adds        string `json:"Adds"`
+	Ads         string `json:"Adds"`
 	Publisher   string `json:"Publisher"`
 	PublisherID string `json:"PublisherID"`
 	Installs    string `json:"Installs"`
@@ -82,7 +82,7 @@ func getAppInfo(url string, AppsInfo chan App, Urls chan string, NextUrls chan s
 	app.Genre = info[1]
 	app.Logo = doc.Find("img.T75of.sHb2Xb").AttrOr("src", "404")
 	app.Ratings = doc.Find("div.BHMmbe").Text()
-	app.Adds = doc.Find("div.bSIuKf").Text()
+	app.Ads = doc.Find("div.bSIuKf").Text()
 	app.Installs = doc.Find("span.EymY4b").Text()
 	app.URL = url
 	app.Email = doc.Find("a.hrTbp.euBY6b").Text()
