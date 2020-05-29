@@ -124,12 +124,13 @@ func getNextUrls(url string, NextUrls chan string, urlStore map[string]bool, map
 	doc.Find("a.poRVub").Each(
 		func(i int, s *goquery.Selection) {
 			next, ok := s.Attr("href")
+			next = "https://play.google.com" + next
 			mapMutex.Lock()
 			_, prs := urlStore[next]
 			urlStore[next] = true
 			if ok && !prs {
 				select {
-				case NextUrls <- "https://play.google.com" + next:
+				case NextUrls <- next:
 					urlsLeft++
 				default:
 					skipped++

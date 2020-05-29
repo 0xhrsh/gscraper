@@ -12,7 +12,7 @@ func main() {
 
 	AppsInfo := make(chan App, 100)
 	Urls := make(chan string, 50000)
-	NextUrls := make(chan string, 3000000)
+	NextUrls := make(chan string, 1000000)
 
 	urlStore := make(map[string]bool)
 	mapMutex := sync.RWMutex{}
