@@ -68,7 +68,7 @@ func parseDumpPages(dumpUrls chan string, NextUrls chan string, urlStore map[str
 
 					}
 				} else {
-					time.Sleep(3 * time.Second)
+					time.Sleep(2 * time.Second)
 				}
 			}
 		}()
